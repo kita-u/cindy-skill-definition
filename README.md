@@ -39,7 +39,7 @@ The live PHP proxy used in the paper is intentionally omitted. It holds a person
 
 The skill text mentions the authors’ hosted copy of the gateway,
 
-`https://kita-u.github.io/cindy-skill-definition/try.html`
+`https://kita-u.github.io/cindy-skill-definition/try.html
 
 That page only displays a figure. It does not call Gemini. `try.html` uses the gateway file in this repository instead.
 
