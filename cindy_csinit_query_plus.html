@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Cindy.js（クエリ csinit）</title>
+    <link rel="stylesheet" href="https://cindyjs.org/dist/v0.8/CindyJS.css">
+    <script type="text/javascript" src="https://cindyjs.org/dist/v0.8/Cindy.js"></script>
+    <script id="csinit" type="text/x-cindyscript">allelements()</script>
+    <script type="text/javascript">
+    (function () {
+      var params = new URLSearchParams(window.location.search);
+      var enc = params.get("csinit");
+      if (enc) {
+        document.getElementById("csinit").textContent = enc;
+      }
+      var t = params.get("title");
+      if (t) document.title = t;
+    })();
+    var cdy = CindyJS({
+      scripts: "cs*",
+      defaultAppearance: { dimDependent: 0.7, fontFamily: "sans-serif", lineSize: 1, pointSize: 5.0, textsize: 12.0 },
+      ports: [{ width: 680, height: 337, id: "CSCanvas", transform: [{ visibleRect: [-8.5, 6.5, 8.5, -5.5] }], background: "rgb(168,176,192)" }]
+    });
+    </script>
+</head>
+<body><div id="CSCanvas"></div></body>
+</html>
