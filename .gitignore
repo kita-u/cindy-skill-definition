@@ -1,0 +1,6 @@
+.env
+.env.*
+*.key
+GOOGLE
+__pycache__/
+.DS_Store

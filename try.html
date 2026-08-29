@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>cindySendPrompt — confirmation test</title>
+  <style>
+    :root {
+      --fg: #1a1a1a;
+      --muted: #555;
+      --line: #c8c8c8;
+      --bg: #f7f6f2;
+      --card: #fff;
+      --accent: #1f4e79;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Times New Roman", Times, serif;
+      color: var(--fg);
+      background: var(--bg);
+      line-height: 1.45;
+    }
+    main {
+      max-width: 44rem;
+      margin: 0 auto;
+      padding: 1.5rem 1rem 3rem;
+    }
+    h1 { font-size: 1.35rem; margin: 0 0 0.4rem; }
+    .lead, .note, label, .status { font-family: system-ui, sans-serif; font-size: 0.92rem; }
+    .lead { color: var(--muted); margin: 0 0 1.2rem; }
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      padding: 1rem 1rem 1.1rem;
+      margin-bottom: 1rem;
+    }
+    label { display: block; font-weight: 600; margin-bottom: 0.35rem; }
+    input[type="password"], textarea {
+      width: 100%;
+      font: 0.95rem/1.4 ui-monospace, Consolas, monospace;
+      padding: 0.45rem 0.5rem;
+      border: 1px solid #999;
+    }
+    textarea { min-height: 6.5rem; resize: vertical; }
+    .row { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0.55rem 0 0.85rem; }
+    .row button, #draw {
+      font-family: system-ui, sans-serif;
+      font-size: 0.85rem;
+      border: 1px solid var(--accent);
+      background: #fff;
+      color: var(--accent);
+      padding: 0.28rem 0.55rem;
+      cursor: pointer;
+    }
+    #draw {
+      background: var(--accent);
+      color: #fff;
+      font-size: 1rem;
+      padding: 0.45rem 1rem;
+    }
+    #draw:disabled { opacity: 0.55; cursor: wait; }
+    .note { color: var(--muted); margin: 0.7rem 0 0; }
+    .status { white-space: pre-wrap; margin: 0.6rem 0 0; min-height: 1.2rem; }
+    .status.err { color: #9b1c1c; }
+    pre {
+      font: 0.78rem/1.35 ui-monospace, Consolas, monospace;
+      background: #f0eee8;
+      border: 1px solid var(--line);
+      padding: 0.6rem;
+      overflow: auto;
+      max-height: 16rem;
+      white-space: pre-wrap;
+    }
+    a { color: var(--accent); }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>cindySendPrompt confirmation test</h1>
+    <p class="lead">
+      Same client flow as in the paper: click → Gemini with the published skill as
+      system instruction → extract CindyScript → open the gateway figure.
+      Uses <strong>your</strong> Gemini API key. The authors’ proxy is not called.
+    </p>
+
+    <div class="card">
+      <label for="apiKey">Your Gemini API key</label>
+      <input id="apiKey" type="password" autocomplete="off" spellcheck="false"
+             placeholder="Paste a key from Google AI Studio (stored only in this tab)">
+      <p class="note">
+      The key is kept in <code>sessionStorage</code> and sent only to
+      <code>generativelanguage.googleapis.com</code>. Do not commit it.
+      On GitHub Pages, if Gemini rejects the key, allow the HTTP referrer
+      <code>https://kita-u.github.io/*</code> (or use an unrestricted key).
+      </p>
+    </div>
+
+    <div class="card">
+      <label for="prompt">Natural-language instruction</label>
+      <div class="row" id="samples"></div>
+      <textarea id="prompt">Construct a regular pentagon</textarea>
+      <p>
+        <button type="button" id="draw">cindySendPrompt(prompt)</button>
+      </p>
+      <p class="status" id="status"></p>
+    </div>
+
+    <div class="card">
+      <label>Model reply (CindyScript is also opened in a new tab)</label>
+      <pre id="output">(nothing yet)</pre>
+    </div>
+
+    <p class="note">
+      Companion to ATCM 2026:
+      <em>Lowering the Authoring Barrier: GUI-Based Natural-Language Dynamic Geometry
+      for Mathematics Materials</em>.
+      Skill: <a href="skill-definition.md">skill-definition.md</a>.
+      Gateway: <a href="cindy_csinit_query_plus.html">cindy_csinit_query_plus.html</a>.
+      Source: <a href="https://github.com/kita-u/cindy-skill-definition">github.com/kita-u/cindy-skill-definition</a>.
+    </p>
+  </main>
+
+  <script src="skill-definition.js"></script>
+  <script>
+    const MODEL = "gemini-3.5-flash";
+    const CINDY_GATEWAY_URL = new URL("cindy_csinit_query_plus.html", window.location.href).href;
+
+    const SAMPLES = [
+      "Construct a regular pentagon",
+      "Construct an equilateral triangle",
+      "Construct the triangle ADE obtained by rotating the given triangle ABC by 90 degrees counterclockwise around the vertex A.",
+      "Draw a triangle with movable vertices A, B, C, and display each interior angle in real time.",
+      "正五角形を作図して"
+    ];
+
+    const apiKeyEl = document.getElementById("apiKey");
+    const promptEl = document.getElementById("prompt");
+    const drawEl = document.getElementById("draw");
+    const statusEl = document.getElementById("status");
+    const outputEl = document.getElementById("output");
+    const samplesEl = document.getElementById("samples");
+
+    SAMPLES.forEach((text) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = text.length > 42 ? text.slice(0, 40) + "…" : text;
+      b.title = text;
+      b.addEventListener("click", () => { promptEl.value = text; });
+      samplesEl.appendChild(b);
+    });
+
+    apiKeyEl.value = sessionStorage.getItem("geminiApiKey") || "";
+    apiKeyEl.addEventListener("change", () => {
+      sessionStorage.setItem("geminiApiKey", apiKeyEl.value.trim());
+    });
+
+    /* --- port of cindySendPrompt from textarea_system_10e_cindyscript_2c.html --- */
+
+    function extractCindyScript(text) {
+      const block = text.match(/```cindyscript\s*([\s\S]*?)```/i);
+      if (block) return block[1].trim();
+
+      const urlBlock = text.match(/```URL\s*([\s\S]*?)```/i);
+      if (urlBlock) {
+        try {
+          const u = new URL(urlBlock[1].trim());
+          const csinit = u.searchParams.get("csinit");
+          if (csinit) return decodeURIComponent(csinit);
+        } catch (_) {}
+      }
+
+      const scriptMatch = text.match(/((?:[^\n]*create\s*\([\s\S]*?)+allelements\s*\(\s*\))/);
+      if (scriptMatch) return scriptMatch[1].trim();
+
+      return null;
+    }
+
+    function buildResult(cindyScript) {
+      const url = CINDY_GATEWAY_URL + "?csinit=" + encodeURIComponent(cindyScript);
+      const formatted = "```cindyscript\n" + cindyScript + "\n```\n\n```URL\n" + url + "\n```";
+      return { formatted: formatted, url: url };
+    }
+
+    function normalizeResponse(rawText) {
+      const script = extractCindyScript(rawText);
+      if (script) return buildResult(script);
+      return {
+        formatted: rawText + "\n\n[warning: could not extract CindyScript]",
+        url: null
+      };
+    }
+
+    function openBlankWindow() {
+      return window.open("about:blank", "_blank");
+    }
+
+    function navigateWindow(win, url) {
+      if (win && !win.closed) {
+        win.location.href = url;
+        return true;
+      }
+      return false;
+    }
+
+    function closeWindow(win) {
+      if (win && !win.closed) win.close();
+    }
+
+    async function requestGemini(prompt) {
+      const skill = window.CINDY_SKILL;
+      if (!skill) {
+        throw new Error("skill-definition.js did not load. Serve this folder over http, not as a raw file.");
+      }
+      const key = apiKeyEl.value.trim();
+      if (!key) throw new Error("Paste your Gemini API key first.");
+
+      const endpoint =
+        "https://generativelanguage.googleapis.com/v1beta/models/" +
+        MODEL +
+        ":generateContent?key=" + encodeURIComponent(key);
+
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          system_instruction: { parts: [{ text: skill }] },
+          contents: [{ role: "user", parts: [{ text: prompt }] }],
+          generationConfig: { temperature: 0.0, maxOutputTokens: 16384 }
+        })
+      });
+
+      let data;
+      try {
+        data = await response.json();
+      } catch (_) {
+        throw new Error("Could not parse Gemini JSON.");
+      }
+
+      if (!response.ok) {
+        throw new Error((data.error && data.error.message) || ("HTTP " + response.status));
+      }
+
+      const candidate = (data.candidates && data.candidates[0]) || {};
+      const parts = (candidate.content && candidate.content.parts) || [];
+      let text = "";
+      parts.forEach((part) => {
+        if (part.text && !part.thought) text += part.text;
+      });
+      return { text: text, finishReason: candidate.finishReason || null };
+    }
+
+    async function cindySendPrompt(prompt) {
+      if (!prompt) {
+        setStatus("Error: empty prompt.", true);
+        return;
+      }
+      if (!apiKeyEl.value.trim()) {
+        setStatus("Paste your Gemini API key first.", true);
+        return;
+      }
+
+      const cindyWindow = openBlankWindow();
+      if (!cindyWindow) {
+        setStatus("Popup blocked. Allow pop-ups for this page.", true);
+        return;
+      }
+
+      setBusy(true);
+      setStatus("Generating…");
+      try {
+        const apiData = await requestGemini(prompt);
+        let text = apiData.text || "";
+        if (apiData.finishReason === "MAX_TOKENS") {
+          text += "\n\n[warning: output may have been truncated (MAX_TOKENS)]";
+        }
+        const normalized = normalizeResponse(text);
+        outputEl.textContent = normalized.formatted;
+        if (normalized.url) {
+          if (!navigateWindow(cindyWindow, normalized.url)) {
+            closeWindow(cindyWindow);
+            setStatus("Could not navigate the new tab. Open the URL in the reply box.", true);
+            return;
+          }
+          setStatus("Opened the gateway figure. Points should be draggable; no further API calls.");
+          return;
+        }
+        closeWindow(cindyWindow);
+        setStatus("No CindyScript could be extracted.", true);
+      } catch (error) {
+        closeWindow(cindyWindow);
+        setStatus(String(error.message || error), true);
+        outputEl.textContent = String(error.message || error);
+      } finally {
+        setBusy(false);
+      }
+    }
+
+    function setStatus(msg, isErr) {
+      statusEl.textContent = msg;
+      statusEl.className = "status" + (isErr ? " err" : "");
+    }
+    function setBusy(busy) {
+      drawEl.disabled = busy;
+    }
+
+    drawEl.addEventListener("click", () => cindySendPrompt(promptEl.value.trim()));
+  </script>
+</body>
+</html>
